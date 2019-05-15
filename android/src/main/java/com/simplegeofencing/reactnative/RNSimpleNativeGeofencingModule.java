@@ -22,6 +22,7 @@ import android.util.Log;
 
 import com.facebook.react.HeadlessJsTaskService;
 import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Callback;
@@ -45,7 +46,7 @@ public class RNSimpleNativeGeofencingModule extends ReactContextBaseJavaModule {
   private GeofencingClient mGeofencingClient;
   private List<Geofence> mGeofenceList;
   private PendingIntent mGeofencePendingIntent;
-  private final ReactApplicationContext reactContext;
+  public final ReactApplicationContext reactContext;
   private final String TAG = "SNGeofencing";
   private final String CHANNEL_ID = "channel_01";
   private NotificationChannel channel;
@@ -68,6 +69,7 @@ public class RNSimpleNativeGeofencingModule extends ReactContextBaseJavaModule {
   private static final String NOTIFICATION_TAG = "GeofenceNotification";
   private static final int NOTIFICATION_ID_START = 1;
   private static final int NOTIFICATION_ID_STOP = 150;
+  private static RNSimpleNativeGeofencingModule rnSimpleNativeGeofencingModule = null;
 
 
   public RNSimpleNativeGeofencingModule(ReactApplicationContext reactContext) {
@@ -81,7 +83,10 @@ public class RNSimpleNativeGeofencingModule extends ReactContextBaseJavaModule {
     this.notifyChannelString[1] = "Description";
     this.geofenceKeys = new ArrayList<String>();
     this.geofenceValues = new ArrayList<String>();
+    rnSimpleNativeGeofencingModule = this;
   }
+
+  public static RNSimpleNativeGeofencingModule getInstance() { return rnSimpleNativeGeofencingModule; }
 
   @Override
   public String getName() {
