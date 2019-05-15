@@ -48,6 +48,9 @@ class RNSimpleNativeGeofencing: RCTEventEmitter, CLLocationManagerDelegate, UNUs
     var notificationAuthorized = true
     
     
+    @objc override static func requiresMainQueueSetup() -> Bool {
+        return false
+    }
     
     override func supportedEvents() -> [String]! {
         return ["leftMonitoringBorderWithDuration"]
@@ -107,6 +110,7 @@ class RNSimpleNativeGeofencing: RCTEventEmitter, CLLocationManagerDelegate, UNUs
         
         DispatchQueue.main.async {
             
+            self.startScanning()
             
             guard let lat = geofence.value(forKey: "latitude") as? Double else {
                 return
@@ -163,7 +167,6 @@ class RNSimpleNativeGeofencing: RCTEventEmitter, CLLocationManagerDelegate, UNUs
     func addGeofences(geofencesArray:NSArray, duration:Int, failCallback: @escaping RCTResponseSenderBlock) -> Void {
         
         DispatchQueue.main.async {
-            
             
             //add small geofences
             for geofence in geofencesArray {
@@ -431,6 +434,7 @@ class RNSimpleNativeGeofencing: RCTEventEmitter, CLLocationManagerDelegate, UNUs
                     "leftMonitoring": "false" as AnyObject
                 ]
                 
+                print("EIEIEIEEI")
                 self.sendEvent(withName: "leftMonitoringBorderWithDuration", body: body )
                 
             }else{
@@ -439,7 +443,7 @@ class RNSimpleNativeGeofencing: RCTEventEmitter, CLLocationManagerDelegate, UNUs
                     "durationLeft": self.globalDeletionTimer as AnyObject,
                     "leftMonitoring": "true" as AnyObject
                 ]
-                
+                print("CIAO CIAO!!!")
                 self.sendEvent(withName: "leftMonitoringBorderWithDuration", body: body )
                 
             }
@@ -449,16 +453,35 @@ class RNSimpleNativeGeofencing: RCTEventEmitter, CLLocationManagerDelegate, UNUs
             let content = UNMutableNotificationContent()
             content.sound = UNNotificationSound.default
             
+            //BACKUP
+//            if self.didEnterBody.contains("[value]") {
+//                if let value = self.valueDic[region.identifier] {
+//                    print("entro in ", value)
+//                    self.didEnterBody = self.didEnterBody.replacingOccurrences(of: "[value]", with: value, options: NSString.CompareOptions.literal, range:nil)
+//                }
+//            }
+//
+//            if self.didExitBody.contains("[value]") {
+//                if let value = self.valueDic[region.identifier] {
+//                    print("esco da ", value)
+//                    self.didExitBody = self.didExitBody.replacingOccurrences(of: "[value]", with: value, options: NSString.CompareOptions.literal, range:nil)
+//                }
+//            }
             
-            if self.didEnterBody.contains("[value]") {
+            var enterBodyText = self.didEnterBody
+            var exitBodyText = self.didExitBody
+            
+            if enterBodyText.contains("[value]") {
                 if let value = self.valueDic[region.identifier] {
-                    self.didEnterBody = self.didEnterBody.replacingOccurrences(of: "[value]", with: value, options: NSString.CompareOptions.literal, range:nil)
+                    print("entro in ", value)
+                    enterBodyText = enterBodyText.replacingOccurrences(of: "[value]", with: value, options: NSString.CompareOptions.literal, range:nil)
                 }
             }
             
-            if self.didExitBody.contains("[value]") {
+            if exitBodyText.contains("[value]") {
                 if let value = self.valueDic[region.identifier] {
-                    self.didExitBody = self.didExitBody.replacingOccurrences(of: "[value]", with: value, options: NSString.CompareOptions.literal, range:nil)
+                    print("esco da ", value)
+                    exitBodyText = exitBodyText.replacingOccurrences(of: "[value]", with: value, options: NSString.CompareOptions.literal, range:nil)
                 }
             }
             
@@ -466,12 +489,28 @@ class RNSimpleNativeGeofencing: RCTEventEmitter, CLLocationManagerDelegate, UNUs
             
             if didEnter {
                 content.title = self.didEnterTitle
-                content.body = self.didEnterBody
+                content.body = enterBodyText
+//                content.body = self.didEnterBody
                 identifier = "enter: \(region.identifier)"
+                
+                let body : [String:AnyObject] = [
+                    "durationLeft": self.globalDeletionTimer as AnyObject,
+                    "leftMonitoring": "false" as AnyObject
+                ]
+                
+                self.sendEvent(withName: "leftMonitoringBorderWithDuration", body: body )
             }else{
                 content.title = self.didExitTitle
-                content.body = self.didExitBody
+                content.body = exitBodyText
+//                content.body = self.didExitBody
                 identifier = "exit: \(region.identifier)"
+                
+                let body : [String:AnyObject] = [
+                    "durationLeft": self.globalDeletionTimer as AnyObject,
+                    "leftMonitoring": "true" as AnyObject
+                ]
+                
+                self.sendEvent(withName: "leftMonitoringBorderWithDuration", body: body )
             }
             
             
@@ -488,6 +527,7 @@ class RNSimpleNativeGeofencing: RCTEventEmitter, CLLocationManagerDelegate, UNUs
                 content: content,
                 trigger: trigger
             )
+            
             
             notificationCenter.add(request, withCompletionHandler: { (error) in
                 if error != nil {
@@ -569,6 +609,15 @@ class RNSimpleNativeGeofencing: RCTEventEmitter, CLLocationManagerDelegate, UNUs
     }
     
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        
+        // BEACON
+        if status == .authorizedAlways {
+            if CLLocationManager.isMonitoringAvailable(for: CLBeaconRegion.self) {
+                if CLLocationManager.isRangingAvailable() {
+                    startScanning()
+                }
+            }
+        }
         if status == .denied {
             print("Geofence will not Work, because of missing Authorization")
             locationAuthorized = false
@@ -577,9 +626,33 @@ class RNSimpleNativeGeofencing: RCTEventEmitter, CLLocationManagerDelegate, UNUs
         }
     }
     
+    //BEACON
+    func startScanning() {
+        let uuid = UUID(uuidString: "f7826da6-4fa2-4e98-8024-bc5b71e0893d")!
+        let beaconRegion = CLBeaconRegion(proximityUUID: uuid, major: 123, minor: 456, identifier: "MyBeacon")
+        
+        locationManager.startMonitoring(for: beaconRegion)
+        locationManager.startRangingBeacons(in: beaconRegion)
+    }
     
-    
-    
+    //BEACON
+    func locationManager(_ manager: CLLocationManager, didRangeBeacons beacons: [CLBeacon], in region: CLBeaconRegion) {
+        
+        if(beacons.count > 0){
+            let body : [String:AnyObject] = [
+                "durationLeft": self.globalDeletionTimer as AnyObject,
+                "leftMonitoring": "true" as AnyObject
+            ]
+            self.sendEvent(withName: "leftMonitoringBorderWithDuration", body: body )
+            return
+        }
+        let body : [String:AnyObject] = [
+            "durationLeft": self.globalDeletionTimer as AnyObject,
+            "leftMonitoring": "false" as AnyObject
+        ]
+        self.sendEvent(withName: "leftMonitoringBorderWithDuration", body: body )
+       
+    }
     
     //MARK: - Notification Delegate Methodes
     
