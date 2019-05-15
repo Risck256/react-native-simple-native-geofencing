@@ -22,6 +22,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingEvent;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -125,6 +126,11 @@ public class GeofenceTransitionsIntentService extends IntentService {
                             intent.getStringExtra("notifyChannelStringDescription"),
                             intent
                     );
+                    if (RNSimpleNativeGeofencingModule.getInstance() == null) {
+                        return;
+                    }
+                    RNSimpleNativeGeofencingModule.getInstance().reactContext
+                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit("leftMonitoringBorderWithDuration", true);
                 }else{
                     clearNotification();
                 }
@@ -153,6 +159,11 @@ public class GeofenceTransitionsIntentService extends IntentService {
                             intent.getStringExtra("notifyChannelStringDescription"),
                             intent
                     );
+                    if (RNSimpleNativeGeofencingModule.getInstance() == null) {
+                        return;
+                    }
+                    RNSimpleNativeGeofencingModule.getInstance().reactContext
+                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit("leftMonitoringBorderWithDuration", false);
                 }else{
                     clearNotification();
                 }
